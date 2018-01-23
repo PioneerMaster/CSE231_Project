@@ -20,10 +20,11 @@ namespace {
 					++count[string(j->getOpcodeName())];
 			for (map<string, int>::iterator iter = count.begin(); iter != count.end(); ++iter)
 				errs() << iter->first << "\t" << iter->second << "\n";
+			// errs()<<"\n";
 			return false;
 		}
 	};
 }
 
 char CountStaticInstr::ID = 0;
-static RegisterPass<CountStaticInstr> X("cse231-csi", false, false);
+static RegisterPass<CountStaticInstr> X("cse231-csi","Developed for part 1 section 1", false, false);
