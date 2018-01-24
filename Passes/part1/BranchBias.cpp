@@ -41,17 +41,13 @@ namespace {
                 // Builder.SetInsertPoint(B->getTerminator());
 				for (BasicBlock::iterator I = B->begin(), IE = B->end(); I != IE; ++I) {
 					// string opcode = ;
-					if ( (string) I->getOpcodeName() == "br" && I->getNumOperands() > 1){
-						IRBuilder<> Builder((Instruction *)&*I);
-
+					if ( (string) I->getOpcodeName() == "br" && I->getNumOperands() == 3){
+						IRBuilder<> Builder(&*I);
 						vector<Value *> args;
-
 						args.push_back(I->getOperand(0));
-
-
 						Builder.CreateCall(updateFunc, args);
 					} else if((string) I->getOpcodeName() == "ret"){
-						IRBuilder<> Builder((Instruction *)&*I);
+						IRBuilder<> Builder(&*I);
 						Builder.CreateCall(printFunc);
 					}
                 }

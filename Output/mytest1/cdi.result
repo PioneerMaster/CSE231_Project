@@ -1,0 +1,15 @@
+ret	1
+br	42
+add	33
+alloca	4
+load	44
+store	35
+icmp	21
+==================== 
+ret	1
+br	42
+add	33
+alloca	4
+load	44
+store	35
+icmp	21
