@@ -145,7 +145,7 @@ const char *mapCodeToName(unsigned Op) {
 // keys: the array of the opcodes of the instructions
 // values: the array of the counts of the instructions
 extern "C" __attribute__((visibility("default")))
-void updateInstrInfo(unsigned num, uint32_t * keys, uint32_t * values) {
+void updateInstrInfo(uint32_t num, uint32_t * keys, uint32_t * values) {
   int i;
   uint32_t key;
   uint32_t value;

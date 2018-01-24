@@ -19,5 +19,10 @@ make
 
 
 
-# cd /LLVM_ROOT/llvm/lib/Transforms/CSE231_Project/
-# make
+cd /LLVM_ROOT/llvm/lib/Transforms/CSE231_Project/
+make
+
+
+
+# passes
+cd /LLVM_ROOT/build/lib

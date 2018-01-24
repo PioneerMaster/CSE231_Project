@@ -30,42 +30,48 @@ namespace {
                                         Type::getVoidTy(context), 
                                         Type::getInt32Ty(context), 
                                         Type::getInt32PtrTy(context), 
-                                        Type::getInt32PtrTy(context), 
-                                        NULL);
+                                        Type::getInt32PtrTy(context)
+                                        );
 
             Constant *printFunc = module->getOrInsertFunction("printOutInstrInfo", 
-                                        Type::getVoidTy(context), 
-                                        NULL);
+                                        Type::getVoidTy(context)
+                                        );
 
             
 
             for (Function::iterator B = F.begin(), BE = F.end(); B != BE; ++B) {
-                map<int,int> counts;
+                map<uint32_t,uint32_t> counts;
                 for (BasicBlock::iterator I = B->begin(), IE = B->end(); I != IE; ++I) {
-					++counts[string(I->getOpcode())];
+					++counts[I->getOpcode()];
                 }
 
-                int numKey = counts.size();
+                uint32_t numKey = counts.size();
 
                 IRBuilder<> Builder(&*B);
                 Builder.SetInsertPoint(B->getTerminator());
 
                 std::vector<Value*> args;
-                std::vector<Constant*> keys;
-                std::vector<Constant*> vals;
+
+                // std::vector<Constant*> keys;
+                // std::vector<Constant*> vals;
+
+                std::vector<uint32_t> keys;
+                std::vector<uint32_t> vals;
                 
-                for(std::map<int,int>::iterator iter = counts.begin(); iter != counts.end(); ++iter){
-                    keys.push_back(ConstantInt::get(Type::getInt32Ty(context), iter->first));
-                    vals.push_back(ConstantInt::get(Type::getInt32Ty(context), iter->second));
+                for(std::map<uint32_t,uint32_t>::iterator iter = counts.begin(); iter != counts.end(); ++iter){
+                    // keys.push_back(ConstantInt::get(Type::getInt32Ty(context), iter->first));
+                    // vals.push_back(ConstantInt::get(Type::getInt32Ty(context), iter->second));
+                    keys.push_back(iter->first);
+                    vals.push_back(iter->second);
                 }
 
-                Constant * keys_const = ConstantDataArray::get(context, *(new ArrayRef<uint32_t>(keys.data(),numKey)));
-                Constant * vals_const = ConstantDataArray::get(context, *(new ArrayRef<uint32_t>(vals.data(),numKey)));
+                Constant * keys_const = ConstantDataArray::get(context, *(new ArrayRef<uint32_t>(keys)));
+                Constant * vals_const = ConstantDataArray::get(context, *(new ArrayRef<uint32_t>(vals)));
 
                 ArrayType* arrayTy = ArrayType::get(IntegerType::get(context, 32), numKey);
 
                 GlobalVariable* keys_global = new GlobalVariable(
-                                        module,
+                                        *module,
                                         arrayTy,
                                         true,
                                         GlobalValue::InternalLinkage,
@@ -73,7 +79,7 @@ namespace {
                                         "key_global");
 
                 GlobalVariable* vals_global = new GlobalVariable(
-                                        module,
+                                        *module,
                                         arrayTy,
                                         true,
                                         GlobalValue::InternalLinkage,

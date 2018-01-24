@@ -1,0 +1,7 @@
+ret	1
+br	3
+add	3
+alloca	2
+load	5
+store	4
+icmp	1
