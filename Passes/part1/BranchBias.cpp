@@ -37,20 +37,32 @@ namespace {
 
 
 			for (Function::iterator B = F.begin(), BE = F.end(); B != BE; ++B) {
-				// IRBuilder<> Builder(&*B);
-                // Builder.SetInsertPoint(B->getTerminator());
-				for (BasicBlock::iterator I = B->begin(), IE = B->end(); I != IE; ++I) {
-					// string opcode = ;
-					if ( (string) I->getOpcodeName() == "br" && I->getNumOperands() == 3){
-						IRBuilder<> Builder(&*I);
-						vector<Value *> args;
-						args.push_back(I->getOperand(0));
-						Builder.CreateCall(updateFunc, args);
-					} else if((string) I->getOpcodeName() == "ret"){
-						IRBuilder<> Builder(&*I);
-						Builder.CreateCall(printFunc);
-					}
-                }
+				IRBuilder<> Builder(&*B);
+                Builder.SetInsertPoint(B->getTerminator());
+				auto I = B->getTerminator();
+
+				if ( (string) I->getOpcodeName() == "br" && I->getNumOperands() == 3){
+					IRBuilder<> Builder(&*I);
+					vector<Value *> args;
+					args.push_back(I->getOperand(0));
+					Builder.CreateCall(updateFunc, args);
+				} else if((string) I->getOpcodeName() == "ret"){
+					IRBuilder<> Builder(&*I);
+					Builder.CreateCall(printFunc);
+				}
+
+				// for (BasicBlock::iterator I = B->begin(), IE = B->end(); I != IE; ++I) {
+				// 	// string opcode = ;
+				// 	if ( (string) I->getOpcodeName() == "br" && I->getNumOperands() == 3){
+				// 		IRBuilder<> Builder(&*I);
+				// 		vector<Value *> args;
+				// 		args.push_back(I->getOperand(0));
+				// 		Builder.CreateCall(updateFunc, args);
+				// 	} else if((string) I->getOpcodeName() == "ret"){
+				// 		IRBuilder<> Builder(&*I);
+				// 		Builder.CreateCall(printFunc);
+				// 	}
+                // }
 			}
             
             return false;
