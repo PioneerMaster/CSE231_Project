@@ -15,9 +15,9 @@ namespace {
 
 		bool runOnFunction(Function &F) override {
 			map<string, int> count;
-			for (Function::iterator i = F.begin(); i != F.end(); ++i)
-				for (BasicBlock::iterator j = i->begin(); j != i->end(); ++j)
-					++count[string(j->getOpcodeName())];
+			for (Function::iterator B = F.begin(); B != F.end(); ++B)
+				for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I)
+					++count[string(I->getOpcodeName())];
 			for (map<string, int>::iterator iter = count.begin(); iter != count.end(); ++iter)
 				errs() << iter->first << "\t" << iter->second << "\n";
 			// errs()<<"\n";

@@ -1,7 +1,0 @@
-add	3
-alloca	2
-br	3
-icmp	1
-load	5
-ret	1
-store	4
