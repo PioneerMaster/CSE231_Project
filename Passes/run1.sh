@@ -2,6 +2,7 @@
 # cd /tests/HelloWorld
 # clang -O0 -S -emit-llvm HelloWorld.cpp
 
+# cd /LLVM_ROOT/build/lib/Transforms/CSE231_Project
 cd /LLVM_ROOT/build/lib/Transforms/
 make
 
