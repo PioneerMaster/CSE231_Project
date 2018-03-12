@@ -25,17 +25,17 @@ using namespace llvm;
 using namespace std;
 
 namespace {
-    class ReachingInfo : public Info {
+    class MayPointToInfo : public Info {
     // protected:
     public:
-        set<unsigned> defs;
-        ReachingInfo(): Info() { }
+        set<unsigned> set_info;
+        MayPointToInfo(): Info() { }
 
-        ReachingInfo(const ReachingInfo& other): Info(other) {
-            defs = other.defs;
+        MayPointToInfo(const MayPointToInfo& other): Info(other) {
+            set_info = other.set_info;
         }
 
-        ~ReachingInfo() { }
+        ~MayPointToInfo() { }
 
         
 
@@ -46,8 +46,8 @@ namespace {
         *   In your subclass you should implement this function according to the project specifications.
         */
         void print() {
-            for (auto d : defs){
-                errs()<<d<<'|';
+            for (auto e : set_info){
+                errs()<<e<<'|';
             }
             errs()<<"\n";
         }
@@ -58,8 +58,8 @@ namespace {
         * Direction:
         *   In your subclass you need to implement this function.
         */
-        static bool equals(ReachingInfo * info1, ReachingInfo * info2) {
-            return info1->defs == info2->defs;
+        static bool equals(MayPointToInfo * info1, MayPointToInfo * info2) {
+            return info1->set_info == info2->set_info;
         }
 
 
@@ -70,31 +70,30 @@ namespace {
         * Direction:
         *   In your subclass you need to implement this function.
         */
-        static Info* join(ReachingInfo * info1, ReachingInfo * info2, ReachingInfo * result){
+        static Info* join(MayPointToInfo * info1, MayPointToInfo * info2, MayPointToInfo * result){
             //make sure that info1 != result and info2 != result
 
             if(result != info1 && result != info2) {
-                result->defs = info1->defs;
-                result->defs.insert(info2->defs.begin(),info2->defs.end());
+                result->set_info = info1->set_info;
+                result->defset_infos.insert(info2->set_info.begin(),info2->set_info.end());
             } else if(result == info1){
-                result->defs.insert(info2->defs.begin(),info2->defs.end());
+                result->set_info.insert(info2->set_info.begin(),info2->set_info.end());
             } else {
-                result->defs.insert(info1->defs.begin(),info1->defs.end());
+                result->set_info.insert(info1->set_info.begin(),info1->set_info.end());
             }
             return result;
-            // set<unsigned> tmp = info1.defs;
         }
 
         
     };
 
     template <class Info, bool Direction>
-    class ReachingDefinitionAnalysis : public DataFlowAnalysis<Info, Direction> {
+    class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction> {
     public:
-        ReachingDefinitionAnalysis(Info &bottom, Info &initialState):   
+        MayPointToAnalysis(Info &bottom, Info &initialState):   
             DataFlowAnalysis<Info, Direction>::DataFlowAnalysis(bottom, initialState) { }
 
-        ~ReachingDefinitionAnalysis() {}
+        ~MayPointToAnalysis() {}
 
         void flowfunction(Instruction * I,
             std::vector<unsigned> & IncomingEdges,
@@ -126,7 +125,7 @@ namespace {
             set<string> cat3 = {"phi"};
             
             if (I->isBinaryOp() || cat1.find(opname)!=cat1.end()){
-                info_in->defs.insert(index);
+                info_in->set_info.insert(index);
             } else if(cat2.find(opname)!=cat2.end()){
                 
             } else if(cat3.find(opname)!=cat3.end()){
@@ -135,7 +134,7 @@ namespace {
                 unsigned indexFirstNonPhi = this->InstrToIndex[firstNonPhi];
 
                 while(i<indexFirstNonPhi) {
-                    info_in->defs.insert(i);
+                    info_in->set_info.insert(i);
                     i++;
                 }
             } else {
@@ -143,7 +142,7 @@ namespace {
             }
             // errs()<<"after info_out\n";
             for(unsigned i=0;i<Infos.size();i++){
-                Infos[i]->defs = info_in->defs;
+                Infos[i]->set_info = info_in->set_info;
             }
 
 
@@ -156,15 +155,15 @@ namespace {
         }
     };
 
-    struct ReachingDefinitionAnalysisPass : public FunctionPass {
+    struct MayPointToAnalysisPass : public FunctionPass {
         static char ID;
 
-        ReachingDefinitionAnalysisPass() : FunctionPass(ID) {}
+        MayPointToAnalysisPass() : FunctionPass(ID) {}
 
         bool runOnFunction(Function &F) override {
             
-            ReachingInfo bot;
-            ReachingDefinitionAnalysis<ReachingInfo,true> rda(bot,bot);
+            MayPointToInfo bot;
+            MayPointToAnalysis<MayPointToInfo,true> rda(bot,bot);
             // errs()<<"aa\n";
             rda.runWorklistAlgorithm(&F);
             // errs()<<"bb\n";
@@ -174,5 +173,5 @@ namespace {
     };
 }
 
-char ReachingDefinitionAnalysisPass::ID = 0;
-static RegisterPass<ReachingDefinitionAnalysisPass> X("cse231-reaching","Developed for part 2", false, false);
+char MayPointToAnalysisPass::ID = 0;
+static RegisterPass<MayPointToAnalysisPass> X("cse231-reaching","Developed for part 2", false, false);

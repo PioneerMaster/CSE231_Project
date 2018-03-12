@@ -60,7 +60,7 @@ class Info {
      * Direction:
      *   In your subclass you need to implement this function.
      */
-    static Info* join(Info * info1, Info * info2, Info * result);
+    static void join(Info * info1, Info * info2, Info * result);
 };
 
 /*
@@ -70,7 +70,7 @@ class Info {
 template <class Info, bool Direction>
 class DataFlowAnalysis {
 
-private:
+protected:
         typedef std::pair<unsigned, unsigned> Edge;
         // Index to instruction map
         std::map<unsigned, Instruction *> IndexToInstr;
@@ -201,6 +201,7 @@ private:
                 for (auto si = succ_begin(block), se = succ_end(block); si != se; ++si) {
                     BasicBlock * succ = *si;
                     Instruction * next = &(succ->front());
+                    // addEdge(term, next, &Bottom);
                     addEdge(term, next, &Bottom);
                 }
 
@@ -217,7 +218,57 @@ private:
          *   Implement the following function in part 3 for backward analyses
          */
         void initializeBackwardMap(Function * func) {
+            assignIndiceToInstrs(func);
 
+            for (Function::iterator bi = func->begin(), e = func->end(); bi != e; ++bi) {
+                BasicBlock * block = &*bi;
+
+                Instruction * firstInstr = &(block->front());
+
+                // Initialize incoming edges to the basic block
+                for (auto pi = pred_begin(block), pe = pred_end(block); pi != pe; ++pi) {
+                    BasicBlock * prev = *pi;
+                    Instruction * src = firstInstr;
+                    Instruction * dst = (Instruction *)prev->getTerminator();
+                    // Instruction * dst = firstInstr;
+                    addEdge(src, dst, &Bottom);
+                }
+
+                // If there is at least one phi node, add an edge from the first phi node
+                // to the first non-phi node instruction in the basic block.
+                if (isa<PHINode>(firstInstr)) {
+                    // addEdge(firstInstr, block->getFirstNonPHI(), &Bottom);
+                    addEdge(block->getFirstNonPHI(), firstInstr,  &Bottom);
+                }
+
+                // Initialize edges within the basic block
+                for (auto ii = block->begin(), ie = block->end(); ii != ie; ++ii) {
+                    Instruction * instr = &*ii;
+                    if (isa<PHINode>(instr))
+                        continue;
+                    if (instr == (Instruction *)block->getTerminator())
+                        break;
+                    Instruction * next = instr->getNextNode();
+                    // addEdge(instr, next, &Bottom);
+                    addEdge(next, instr, &Bottom);
+                }
+
+                // Initialize outgoing edges of the basic block
+                Instruction * term = (Instruction *)block->getTerminator();
+                for (auto si = succ_begin(block), se = succ_end(block); si != se; ++si) {
+                    BasicBlock * succ = *si;
+                    Instruction * next = &(succ->front());
+                    // addEdge(term, next, &Bottom);
+                    addEdge(next, term, &Bottom);
+                }
+
+            }
+
+            // EntryInstr = (Instruction *) &((func->front()).front());
+            EntryInstr = (Instruction *) &((func->back()).back());
+            addEdge(nullptr, EntryInstr, &InitialState);
+
+            return;
         }
 
     /*
@@ -240,7 +291,16 @@ public:
                                      Bottom(bottom), InitialState(initialState),EntryInstr(nullptr) {}
 
     virtual ~DataFlowAnalysis() {
-        
+        // errs()<<"show edgeinfos\n";
+        for (auto &it : EdgeToInfo) {
+            if (it.second != &Bottom && it.second != &InitialState){
+                delete it.second;
+                // errs()<<it.first.first<<", "<<it.first.second<<", address: "<<it.second<<'\n';
+            } else{
+                // errs()<<it.first.first<<", "<<it.first.second<<", address: "<<"bottom\n";
+            }
+            // EdgeToInfo.
+        }
     }
 
     /*
@@ -269,12 +329,14 @@ public:
      */
     void runWorklistAlgorithm(Function * func) {
         std::deque<unsigned> worklist;
-
+        // errs()<<"enter worklist algorithm OK!\n";
         // (1) Initialize info of each edge to bottom
         if (Direction)
             initializeForwardMap(func);
         else
             initializeBackwardMap(func);
+
+        // errs()<<"Init OK!\n";
 
         assert(EntryInstr != nullptr && "Entry instruction is null.");
 
@@ -282,13 +344,24 @@ public:
         // inst_iterator I = inst_begin(F);
         // Instruction * instr = &*I;
         // worklist.push_back(I);
-        for (auto iter = IndexToInstr.begin(); iter != IndexToInstr.end(); ++iter)
+        // errs()<<"Instr num "<< IndexToInstr.size()<<"\n";
+        // errs()<<"Edge num "<< EdgeToInfo.size()<<"\n";
+        for (auto iter = IndexToInstr.begin(); iter != IndexToInstr.end(); ++iter){
+            if(iter->first==0){
+                continue;
+            }
 			worklist.push_back(iter->first);
+        }
         // (3) Compute until the work list is empty
-        while (!worklist.empty()){
-            Instruction *I = worklist.front();
+        // errs()<<"worklist len "<< worklist.size()<<"\n";
+        while (!worklist.empty()) {
+            unsigned index = worklist.front();
             worklist.pop_front();
-            unsigned index = InstrToIndex[I];
+            Instruction *I = IndexToInstr[index];
+            // if(I==nullptr){
+            //     errs()<<"index "<<index<<", I null\n";
+            // }
+            // unsigned index = InstrToIndex[I];
             // Info * info_in = new Info(Bottom);
 
             std::vector<unsigned> incomingEdges;
@@ -297,35 +370,38 @@ public:
             getOutgoingEdges(index, &outgoingEdges);
 
             std::vector<Info *> info_out;
-            for(int i=0; i<outgoingEdges.size();i++){
+            for(unsigned i=0; i<outgoingEdges.size();i++){
                 info_out.push_back(new Info());
             }
+            // errs()<<"before flow func\n";
             flowfunction(I, incomingEdges, outgoingEdges, info_out);
-
-            for(int i=0;i<info_out.size();i++){
-                int start = index, end = outgoingEdges[i];
+            // errs()<<"after flow func\n";
+            for(unsigned i=0;i<info_out.size();i++){
+                unsigned start = index, end = outgoingEdges[i];
                 Edge edge = std::make_pair(start, end);
-                Info * new_info = new Info();
+                Info * newInfo = new Info();
                 
-                Info::join(info_out[i], EdgeToInfo[edge], new_info);
+                Info::join(info_out[i], EdgeToInfo[edge], newInfo);
 
-                if(!Info::equals(new_info,EdgeToInfo[edge])){
-                    if (EdgeToInfo[e] != &Bottom) { {
-                        delete EdgeToInfo[e];
+                if(!Info::equals(newInfo,EdgeToInfo[edge])){
+                    if (EdgeToInfo[edge] != &Bottom) { 
+                        delete EdgeToInfo[edge];
                     }
-                    EdgeToInfo[e] = new_Info
-                } else{
-                    delete new_info;
+                    EdgeToInfo[edge] = newInfo;
+                    worklist.push_back(end);
+                } else {
+                    delete newInfo;
                 }
             }
 
-            for(int i=0; i<outgoingEdges.size();i++){
+            for(unsigned i=0; i<outgoingEdges.size();i++){
                 delete info_out[i];
             }
             
         }
     }
 };
+
 
 
 
