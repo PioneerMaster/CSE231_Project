@@ -1,0 +1,13 @@
+Edge 0->Edge 13:
+Edge 2->Edge 1:1|
+Edge 3->Edge 2:1|2|
+Edge 4->Edge 3:3|
+Edge 5->Edge 4:
+Edge 5->Edge 11:7|8|9|
+Edge 8->Edge 5:5|6|7|
+Edge 9->Edge 8:5|7|8|
+Edge 10->Edge 9:5|7|8|9|
+Edge 11->Edge 10:7|8|9|10|
+Edge 12->Edge 4:
+Edge 12->Edge 11:8|
+Edge 13->Edge 12:12|
