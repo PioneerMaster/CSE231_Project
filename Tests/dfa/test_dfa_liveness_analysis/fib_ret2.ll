@@ -1,5 +1,5 @@
-; ModuleID = './fib.c'
-source_filename = "./fib.c"
+; ModuleID = './fib.cpp'
+source_filename = "./fib.cpp"
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -61,7 +61,8 @@ define i32 @_Z8calc_fibi(i32) #0 {
 ; <label>:29:                                     ; preds = %16
   %30 = load i32, i32* %4, align 4
   store i32 %30, i32* %2, align 4
-  br label %31
+  ; br label %31
+  ret i32 %30
 
 ; <label>:31:                                     ; preds = %29, %14, %10
   %32 = load i32, i32* %2, align 4

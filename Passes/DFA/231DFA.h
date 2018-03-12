@@ -24,6 +24,7 @@
 #include <map>
 #include <utility>
 #include <vector>
+#include <string>
 
 namespace llvm {
 
@@ -262,9 +263,15 @@ protected:
                     addEdge(next, term, &Bottom);
                 }
 
+                // Instruction * ProbableEntryInstr = (Instruction *) &(block->back());
+                // if((std::string) (ProbableEntryInstr->getOpcodeName()) == "ret"){
+                //     addEdge(nullptr, ProbableEntryInstr, &InitialState);
+                // }
             }
 
-            // EntryInstr = (Instruction *) &((func->front()).front());
+
+
+
             EntryInstr = (Instruction *) &((func->back()).back());
             addEdge(nullptr, EntryInstr, &InitialState);
 

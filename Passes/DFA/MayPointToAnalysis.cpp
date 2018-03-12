@@ -28,11 +28,12 @@ namespace {
     class MayPointToInfo : public Info {
     // protected:
     public:
-        set<unsigned> set_info;
+        // map<string, set<string> > pointmap;
+        set<unsigned> pointmap;
         MayPointToInfo(): Info() { }
 
         MayPointToInfo(const MayPointToInfo& other): Info(other) {
-            set_info = other.set_info;
+            pointmap = other.pointmap;
         }
 
         ~MayPointToInfo() { }
@@ -46,7 +47,7 @@ namespace {
         *   In your subclass you should implement this function according to the project specifications.
         */
         void print() {
-            for (auto e : set_info){
+            for (auto e : pointmap){
                 errs()<<e<<'|';
             }
             errs()<<"\n";
@@ -59,7 +60,7 @@ namespace {
         *   In your subclass you need to implement this function.
         */
         static bool equals(MayPointToInfo * info1, MayPointToInfo * info2) {
-            return info1->set_info == info2->set_info;
+            return info1->pointmap == info2->pointmap;
         }
 
 
@@ -74,12 +75,12 @@ namespace {
             //make sure that info1 != result and info2 != result
 
             if(result != info1 && result != info2) {
-                result->set_info = info1->set_info;
-                result->defset_infos.insert(info2->set_info.begin(),info2->set_info.end());
+                result->pointmap = info1->pointmap;
+                result->pointmap.insert(info2->pointmap.begin(),info2->pointmap.end());
             } else if(result == info1){
-                result->set_info.insert(info2->set_info.begin(),info2->set_info.end());
+                result->pointmap.insert(info2->pointmap.begin(),info2->pointmap.end());
             } else {
-                result->set_info.insert(info1->set_info.begin(),info1->set_info.end());
+                result->pointmap.insert(info1->pointmap.begin(),info1->pointmap.end());
             }
             return result;
         }
@@ -120,29 +121,54 @@ namespace {
             // errs()<<"before category\n";
             // unsigned category = 10;
 
-            set<string> cat1 = {"alloca", "load", "select", "getelementptr","icmp","fcmp"};
-            set<string> cat2 = {"br","switch", "store", };
-            set<string> cat3 = {"phi"};
-            
-            if (I->isBinaryOp() || cat1.find(opname)!=cat1.end()){
-                info_in->set_info.insert(index);
-            } else if(cat2.find(opname)!=cat2.end()){
-                
-            } else if(cat3.find(opname)!=cat3.end()){
-                unsigned i=index;
-                Instruction * firstNonPhi = I->getParent()->getFirstNonPHI();
-                unsigned indexFirstNonPhi = this->InstrToIndex[firstNonPhi];
+            //isa<AllocaInst>(I)
+            if (opname == "alloca") {
 
-                while(i<indexFirstNonPhi) {
-                    info_in->set_info.insert(i);
-                    i++;
-                }
+            } else if (opname == "bitcast") {
+
+            } else if (opname == "getelementptr") {
+
+            } else if (opname == "load") {
+
+            } else if (opname == "store") {
+                
+            } else if (opname == "select") {
+
+            } else if (opname == "phi") {
+
             } else {
-                // errs()<<"Wrong in category\n";
+                
             }
+
+            // set<string> cat1 = {"alloca", "load", "select", "getelementptr","icmp","fcmp"};
+            // set<string> cat2 = {"br","switch", "store", };
+            // set<string> cat3 = {"phi"};
+            
+            // if (I->isBinaryOp() || cat1.find(opname)!=cat1.end()){
+            //     info_in->pointmap.insert(index);
+            // } else if(cat2.find(opname)!=cat2.end()){
+                
+            // } else if(cat3.find(opname)!=cat3.end()){
+            //     unsigned i=index;
+            //     Instruction * firstNonPhi = I->getParent()->getFirstNonPHI();
+            //     unsigned indexFirstNonPhi = this->InstrToIndex[firstNonPhi];
+
+            //     while(i<indexFirstNonPhi) {
+            //         info_in->pointmap.insert(i);
+            //         i++;
+            //     }
+            // } else {
+            //     // errs()<<"Wrong in category\n";
+            // }
+
+
+
+
+
+
             // errs()<<"after info_out\n";
             for(unsigned i=0;i<Infos.size();i++){
-                Infos[i]->set_info = info_in->set_info;
+                Infos[i]->pointmap = info_in->pointmap;
             }
 
 
@@ -163,15 +189,15 @@ namespace {
         bool runOnFunction(Function &F) override {
             
             MayPointToInfo bot;
-            MayPointToAnalysis<MayPointToInfo,true> rda(bot,bot);
+            MayPointToAnalysis<MayPointToInfo,true> mpta(bot,bot);
             // errs()<<"aa\n";
-            rda.runWorklistAlgorithm(&F);
+            mpta.runWorklistAlgorithm(&F);
             // errs()<<"bb\n";
-            rda.print();
+            mpta.print();
             return false;
         }
     };
 }
 
 char MayPointToAnalysisPass::ID = 0;
-static RegisterPass<MayPointToAnalysisPass> X("cse231-reaching","Developed for part 2", false, false);
+static RegisterPass<MayPointToAnalysisPass> X("cse231-maypointto","Developed for part 3", false, false);

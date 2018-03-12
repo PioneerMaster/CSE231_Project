@@ -122,7 +122,7 @@ namespace {
             // unsigned category = 10;
 
             set<string> cat1 = {"alloca", "load", "select", "getelementptr","icmp","fcmp"};
-            set<string> cat2 = {"br","switch", "store", };
+            set<string> cat2 = {"br","switch", "store"};
             set<string> cat3 = {"phi"};
             
             if (I->isBinaryOp() || cat1.find(opname)!=cat1.end()){

@@ -20,17 +20,17 @@ mkdir -p /tmp/sol
 mkdir -p ${OUTPUT_DIR}/sol
 
 
-NAME=fib
+NAME=fcmp
 
 LL_NAME=${NAME}.ll
 
 RESULT_NAME=${NAME}.result
 
-$LLVM_BIN/clang++ -c -O0 $TEST_DIR/${NAME}.c -emit-llvm -S -o $TEST_DIR/${LL_NAME}
+# $LLVM_BIN/clang++ -c -O1 $TEST_DIR/${NAME}.c -emit-llvm -S -o $TEST_DIR/${LL_NAME}
 
 
 
-${LLVM_BIN}/opt -load ${LLVM_SO}/CSE231.so -cse231-liveness < ${TEST_DIR}/${LL_NAME} > /dev/null 2> ${OUTPUT_DIR}/${RESULT_NAME}
+${LLVM_BIN}/opt -load ${LLVM_SO}/CSE231.so -cse231-reaching < ${TEST_DIR}/${LL_NAME} > /dev/null 2> ${OUTPUT_DIR}/${RESULT_NAME}
 
 # solution
-/solution/opt -cse231-liveness < ${TEST_DIR}/${LL_NAME} > /dev/null 2> ${OUTPUTSOL_DIR}/${RESULT_NAME}
+/solution/opt -cse231-reaching < ${TEST_DIR}/${LL_NAME} > /dev/null 2> ${OUTPUTSOL_DIR}/${RESULT_NAME}
