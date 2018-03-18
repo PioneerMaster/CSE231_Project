@@ -263,17 +263,18 @@ protected:
                     addEdge(next, term, &Bottom);
                 }
 
-                // Instruction * ProbableEntryInstr = (Instruction *) &(block->back());
-                // if((std::string) (ProbableEntryInstr->getOpcodeName()) == "ret"){
-                //     addEdge(nullptr, ProbableEntryInstr, &InitialState);
-                // }
+                // multi ret operator
+                Instruction * ProbableEntryInstr = (Instruction *) &(block->back());
+                if((std::string) (ProbableEntryInstr->getOpcodeName()) == "ret"){
+                    addEdge(nullptr, ProbableEntryInstr, &InitialState);
+                }
             }
 
 
 
 
             EntryInstr = (Instruction *) &((func->back()).back());
-            addEdge(nullptr, EntryInstr, &InitialState);
+            // addEdge(nullptr, EntryInstr, &InitialState);
 
             return;
         }
