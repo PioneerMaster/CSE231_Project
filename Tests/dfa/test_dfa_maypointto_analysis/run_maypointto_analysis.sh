@@ -19,13 +19,14 @@ OUTPUTSOL_DIR=${OUTPUT_DIR}/sol
 mkdir -p /tmp/sol
 mkdir -p ${OUTPUT_DIR}/sol
 
-NAME=pointer
+# NAME=load-store-to-memcpy
+NAME=lib231_pwwp
 
 LL_NAME=${NAME}.ll
 
 RESULT_NAME=${NAME}.result
 
-$LLVM_BIN/clang++ -c -O0 $TEST_DIR/${NAME}.cpp -emit-llvm -S -o $TEST_DIR/${LL_NAME}
+# $LLVM_BIN/clang++ -c -O0 $TEST_DIR/${NAME}.cpp -emit-llvm -S -o $TEST_DIR/${LL_NAME}
 
 
 
