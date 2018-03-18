@@ -23,6 +23,32 @@
 using namespace llvm;
 using namespace std;
 
+const int M_bit = 15;
+
+unsigned toR(unsigned n)
+{
+    return n;
+}
+
+unsigned toM(unsigned n)
+{
+    return n | (1 << M_bit);
+}
+
+unsigned isR(unsigned n)
+{
+    return (n & (1 << M_bit)) == 0;
+}
+
+unsigned backtoRM(unsigned n){
+    return (n & (~(1 << M_bit)));
+}
+
+string backtoRMstr(unsigned n)
+{
+    return to_string(backtoRM(n));
+}
+
 namespace
 {
 class MayPointToInfo : public Info
@@ -48,33 +74,24 @@ class MayPointToInfo : public Info
         *   In your subclass you should implement this function according to the project specifications.
         */
 
-    static string toR(unsigned r)
-    {
-        string res = "R";
-        res.append(to_string(r));
-        return res;
-    }
-
-    static string toM(unsigned m)
-    {
-        string res = "M";
-        res.append(to_string(m));
-        return res;
-    }
-
     string map2Str()
     {
         string res = "";
         for (auto entry : point_map)
         {
-            string Rx = toR(entry.first);
+            // string Rx = toR(entry.first);
+            string Rx = "R" + backtoRMstr(entry.first);
             string Ms = "->(";
             // prevent print empty set
-            if(entry.second.empty())
+            if (entry.second.empty())
                 continue;
             for (auto M_unsigned : entry.second)
             {
-                string Mx = toM(M_unsigned);
+                // string Mx = toM(M_unsigned);
+                if(isR(M_unsigned)) {
+                    continue;
+                }
+                string Mx = "M" + backtoRMstr(M_unsigned);
                 Ms.append(Mx + "/");
                 // res.append(Rx+"->"+Mx+"|");
             }
@@ -191,8 +208,9 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
         //isa<AllocaInst>(I)
         if (opname == "alloca")
         {
-            info_in->point_map[index].insert(index);
+            info_in->point_map[index].insert(toM(index));
         }
+        // in U {R_i -> X | R_y -> X -- in }   X can be R_a M_a
         else if (opname == "bitcast" || opname == "getelementptr")
         {
             Instruction *instr_operand = (Instruction *)I->getOperand(0);
@@ -220,18 +238,24 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
         //         }
         //     }
         // }
+
+
+        // in U {R_i -> Y | R_p -> X -- in  &  X -> Y -- in}   X is R_a not M_a
         else if (opname == "load")
         {
             if (I->getType()->isPointerTy())
             {
-                // Instruction *instr_operand = (Instruction *)I->getOperand(0);
-                Instruction *instr_operand = (Instruction*)(((LoadInst*)I)->getPointerOperand())
+                Instruction *instr_operand = (Instruction *)I->getOperand(0);
+                // Instruction *instr_operand = (Instruction *)(((LoadInst *)I)->getPointerOperand());
                 if (this->InstrToIndex.count(instr_operand) != 0)
                 {
                     // Instruction *operand_operand_instr = (Instruction *)instr_operand->getOperand(0);
                     unsigned operand_instr_index = this->InstrToIndex[instr_operand];
                     for (auto X : info_in->point_map[operand_instr_index])
                     {
+                        if (!isR(X)) {
+                            continue;
+                        }
                         auto X_pointto_set = info_in->point_map[X];
 
                         if (!X_pointto_set.empty())
@@ -242,6 +266,8 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
                 }
             }
         }
+
+        // in U { Y -> X | R_v -> X -- in & R_p -> Y -- in}   Y is R_a not M_a
         else if (opname == "store")
         {
             Instruction *operand_V_instr = (Instruction *)I->getOperand(0);
@@ -258,6 +284,9 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
                 {
                     for (auto Y : info_in->point_map[operand_P_instr_index])
                     {
+                        if (!isR(Y)){
+                            continue;
+                        }
                         info_in->point_map[Y].insert(V_pointto_set.begin(), V_pointto_set.end());
                     }
                 }
