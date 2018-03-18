@@ -1,211 +1,353 @@
-//Wenbin Zhu A53211044
 #include "231DFA.h"
+
+// #include "llvm/Pass.h"
+// #include "llvm/IR/Type.h"
+// #include "llvm/IR/Value.h"
+// #include "llvm/IR/Module.h"
+// #include "llvm/IR/Function.h"
+// #include "llvm/IR/Constants.h"
+// #include "llvm/IR/IRBuilder.h"
+// #include "llvm/IR/BasicBlock.h"
+// #include "llvm/IR/Instruction.h"
+// #include "llvm/IR/LLVMContext.h"
+// #include "llvm/Support/raw_ostream.h"
+
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <string>
+#include <vector>
+#include <set>
+
 using namespace llvm;
 using namespace std;
 
-class MayPointToInfo : public Info {
-	private:
-		map<pair<char, unsigned>, set<unsigned>> infoMap;
+namespace
+{
+class MayPointToInfo : public Info
+{
+    // protected:
+  public:
+    // map<string, set<string> > point_map;
+    map<unsigned, set<unsigned>> point_map;
+    // set<unsigned> point_map;
+    MayPointToInfo() : Info() {}
 
-	public:
-		MayPointToInfo() {}
+    MayPointToInfo(const MayPointToInfo &other) : Info(other)
+    {
+        point_map = other.point_map;
+    }
 
-		MayPointToInfo(map<pair<char, unsigned>, set<unsigned>> m) {
-			infoMap = m;
-		}
+    ~MayPointToInfo() {}
 
-		// getter and setter
-		map<pair<char, unsigned>, set<unsigned>> getInfoMap() {
-			return infoMap;
-		}
+    /*
+        * Print out the information
+        *
+        * Direction:
+        *   In your subclass you should implement this function according to the project specifications.
+        */
 
-		set<unsigned> getMemSet(pair<char, unsigned> key) {
-			return infoMap[key];
-		}
+    static string toR(unsigned r)
+    {
+        string res = "R";
+        res.append(to_string(r));
+        return res;
+    }
 
-		void setInfoMap(map<pair<char, unsigned>, set<unsigned>> m) {
-			infoMap = m;
-		}
+    static string toM(unsigned m)
+    {
+        string res = "M";
+        res.append(to_string(m));
+        return res;
+    }
 
-		void print() {
-			for (auto ri = infoMap.begin(); ri != infoMap.end(); ++ri) {
-				if (ri->second.size() == 0)
-					continue;
-
-				errs() << (char) toupper(ri->first.first) << ri->first.second << "->(";
-
-				for (auto mi = ri->second.begin(); mi != ri->second.end(); ++mi) {
-					errs() << "M" << *mi << "/";
-				}
-				errs() << ")|";
-			}
-			errs() << "\n";
-		}
-
-		static bool equals(MayPointToInfo * info1, MayPointToInfo * info2) {
-			return info1->getInfoMap() == info2->getInfoMap();
-		}
-
-		static MayPointToInfo* join(MayPointToInfo * info1, MayPointToInfo * info2, MayPointToInfo * result) {
-			map<pair<char, unsigned>, set<unsigned>> retMap = info1->getInfoMap();
-			map<pair<char, unsigned>, set<unsigned>> info2Map = info2->getInfoMap();
-
-			for (auto it = info2Map.begin(); it != info2Map.end(); ++it) {
-				retMap[make_pair(it->first.first, it->first.second)].insert(it->second.begin(), it->second.end());
-			}
-
-			result->setInfoMap(retMap);
-
-			return nullptr;
-		}
-};
-
-
-class MayPointToAnalysis : public DataFlowAnalysis<MayPointToInfo, true> {
-	private:
-		typedef pair<unsigned, unsigned> Edge;
-		const char R = 'R';
-		const char M = 'm';
-	
-	public:
-		MayPointToAnalysis(MayPointToInfo & bottom, MayPointToInfo & initialState) : 
-			DataFlowAnalysis(bottom, initialState) {}
-
-		void flowfunction(Instruction * I, std::vector<unsigned> & IncomingEdges,
-									   std::vector<unsigned> & OutgoingEdges,
-									   std::vector<MayPointToInfo *> & Infos) {
-			
-			string opName = I->getOpcodeName();
-			map<Edge, MayPointToInfo *> edgeToInfo = getEdgeToInfo();
-			map<Instruction *, unsigned> instrToIndex = getInstrToIndex();
-			map<unsigned, Instruction *> indexToInstr = getIndexToInstr();
-
-			unsigned instrIdx = instrToIndex[I];
-			MayPointToInfo * inInfo = new MayPointToInfo();
-			MayPointToInfo * outInfo = new MayPointToInfo();
-			map<pair<char, unsigned>, set<unsigned>> rmMap;
-
-			// Join all incoming infos
-			for (size_t i = 0; i < IncomingEdges.size(); ++i) {
-				Edge inEdge = make_pair(IncomingEdges[i], instrIdx);
-				MayPointToInfo::join(inInfo, edgeToInfo[inEdge], inInfo);
-				MayPointToInfo::join(outInfo, edgeToInfo[inEdge], outInfo);
-			}
-
-			if (isa<AllocaInst>(I)) {
-				rmMap[make_pair(R, instrIdx)].insert(instrIdx);
-				MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-			}
-
-			else if (isa<BitCastInst>(I)) {
-				unsigned rv = instrToIndex[(Instruction *) I->getOperand(0)];
-				set<unsigned> X = inInfo->getMemSet(make_pair(R, rv));
-				
-				rmMap[make_pair(R, instrIdx)].insert(X.begin(), X.end());
-				MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-			}
-
-			else if (isa<GetElementPtrInst>(I)) {
-				GetElementPtrInst * instr = cast<GetElementPtrInst> (I);
-				unsigned rp = instrToIndex[(Instruction *) instr->getPointerOperand()];
-				set<unsigned> X = inInfo->getMemSet(make_pair(R, rp));
-
-				rmMap[make_pair(R, instrIdx)].insert(X.begin(), X.end());
-				MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-			}
-
-			else if (isa<LoadInst>(I)) {
-				if (I->getType()->isPointerTy()) {
-					LoadInst * instr = cast<LoadInst> (I);
-					unsigned rp = instrToIndex[(Instruction *) instr->getPointerOperand()];
-					set<unsigned> X = inInfo->getMemSet(make_pair(R, rp));
-					set<unsigned> Y;
-
-					for (auto it = X.begin(); it != X.end(); ++it) {
-						set<unsigned> s = inInfo->getMemSet(make_pair(M, *it));
-						Y.insert(s.begin(), s.end());
-					}
-
-					rmMap[make_pair(R, instrIdx)].insert(Y.begin(), Y.end());
-					MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-				}
-			}
-
-			else if (isa<StoreInst>(I)) {
-					StoreInst * instr = cast<StoreInst> (I);
-					unsigned rv = instrToIndex[(Instruction *) instr->getValueOperand()];
-					unsigned rp = instrToIndex[(Instruction *) instr->getPointerOperand()];
-					set<unsigned> X = inInfo->getMemSet(make_pair(R, rv));
-					set<unsigned> Y = inInfo->getMemSet(make_pair(R, rp));
-
-					for (auto xi = X.begin(); xi != X.end(); ++xi) {
-						for (auto yi = Y.begin(); yi != Y.end(); ++yi) {
-							rmMap[make_pair(M, *yi)].insert(*xi);
-						}
-					}
-
-					MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-			}
-
-			else if (isa<SelectInst>(I)) {
-				SelectInst * instr = cast<SelectInst> (I);
-				unsigned r1 = instrToIndex[(Instruction *) instr->getTrueValue()];
-				unsigned r2 = instrToIndex[(Instruction *) instr->getFalseValue()];
-				set<unsigned> X = inInfo->getMemSet(make_pair(R, r1));
-				set<unsigned> Y = inInfo->getMemSet(make_pair(R, r2));
-
-				rmMap[make_pair(R, instrIdx)].insert(X.begin(), X.end());
-				rmMap[make_pair(R, instrIdx)].insert(Y.begin(), Y.end());
-				MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-			}
-
-			else if (isa<PHINode>(I)) {
-				Instruction * firstNonPhi = I->getParent()->getFirstNonPHI();
-				unsigned firstNonPhiIdx = instrToIndex[firstNonPhi];
-
-				for (unsigned i = instrIdx; i < firstNonPhiIdx; ++i) {
-					Instruction *instr = indexToInstr[i];
-
-					for (unsigned j = 0; j < instr->getNumOperands(); ++j) {
-						unsigned rv = instrToIndex[(Instruction *) instr->getOperand(j)];
-						set<unsigned> X = inInfo->getMemSet(make_pair(R, rv));
-						rmMap[make_pair(R, i)].insert(X.begin(), X.end());
-					}
-				}
-
-				MayPointToInfo::join(outInfo, new MayPointToInfo(rmMap), outInfo);
-			}
-
-			// Distribute result to outgoing edges
-			for (size_t i = 0; i < OutgoingEdges.size(); ++i)
-				Infos.push_back(outInfo);
-		}
-};
-
-
-namespace {
-    struct MayPointToAnalysisPass : public FunctionPass {
-        static char ID;
-        MayPointToAnalysisPass() : FunctionPass(ID) {}
-
-        bool runOnFunction(Function &F) override {
-        	MayPointToInfo bottom;
-        	MayPointToInfo initialState;
-        	MayPointToAnalysis * rda = new MayPointToAnalysis(bottom, initialState);
-
-        	rda->runWorklistAlgorithm(&F);
-        	rda->print();
-
-            return false;
+    string map2Str()
+    {
+        string res = "";
+        for (auto entry : point_map)
+        {
+            string Rx = toR(entry.first);
+            string Ms = "->(";
+            // prevent print empty set
+            if(entry.second.empty())
+                continue;
+            for (auto M_unsigned : entry.second)
+            {
+                string Mx = toM(M_unsigned);
+                Ms.append(Mx + "/");
+                // res.append(Rx+"->"+Mx+"|");
+            }
+            Ms.append(")|");
+            res.append(Rx + Ms);
         }
-    }; // end of struct MayPointToAnalysisPass
-}  // end of anonymous namespace
+        return res;
+    }
+
+    void print()
+    {
+        // for (auto e : point_map){
+        //     errs()<<e<<'|';
+        // }
+        // errs()<<"\n";
+        errs() << this->map2Str() << "\n";
+    }
+
+    /*
+        * Compare two pieces of information
+        *
+        * Direction:
+        *   In your subclass you need to implement this function.
+        */
+    static bool equals(MayPointToInfo *info1, MayPointToInfo *info2)
+    {
+        return info1->point_map == info2->point_map;
+    }
+
+    /*
+        * Join two pieces of information.
+        * The third parameter points to the result.
+        *
+        * Direction:
+        *   In your subclass you need to implement this function.
+        */
+    static Info *join(MayPointToInfo *info1, MayPointToInfo *info2, MayPointToInfo *result)
+    {
+        //make sure that info1 != result and info2 != result
+
+        if (result != info1 && result != info2)
+        {
+            result->point_map = info1->point_map;
+            for (auto entry : info2->point_map)
+            {
+                auto set2 = entry.second;
+                if (!set2.empty())
+                {
+                    result->point_map[entry.first].insert(set2.begin(), set2.end());
+                }
+            }
+        }
+        else if (result == info1)
+        {
+            for (auto entry : info2->point_map)
+            {
+                auto set2 = entry.second;
+                if (!set2.empty())
+                {
+                    result->point_map[entry.first].insert(set2.begin(), set2.end());
+                }
+            }
+        }
+        else
+        {
+            // result->point_map.insert(info1->point_map.begin(),info1->point_map.end());
+
+            for (auto entry : info1->point_map)
+            {
+                auto set1 = entry.second;
+                if (!set1.empty())
+                {
+                    result->point_map[entry.first].insert(set1.begin(), set1.end());
+                }
+            }
+        }
+        return result;
+    }
+};
+
+template <class Info, bool Direction>
+class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
+{
+  public:
+    MayPointToAnalysis(Info &bottom, Info &initialState) : DataFlowAnalysis<Info, Direction>::DataFlowAnalysis(bottom, initialState) {}
+
+    ~MayPointToAnalysis() {}
+
+    void flowfunction(Instruction *I,
+                      std::vector<unsigned> &IncomingEdges,
+                      std::vector<unsigned> &OutgoingEdges,
+                      std::vector<Info *> &Infos)
+    {
+        // errs()<<"in flowfunc\n";
+        unsigned index = this->InstrToIndex[I];
+        // errs()<<"this instrtoindex\n";
+
+        I->getOpcodeName();
+        // errs()<<"opcodename\n";
+        string opname(I->getOpcodeName());
+
+        // errs()<<"opname "<<opname<<"\n";
+
+        Info *info_in = new Info();
+        unsigned end = index;
+        for (auto start : IncomingEdges)
+        {
+            auto edge = make_pair(start, end);
+            Info::join(info_in, this->EdgeToInfo[edge], info_in);
+        }
+        // errs()<<"before category\n";
+        // unsigned category = 10;
+
+        //isa<AllocaInst>(I)
+        if (opname == "alloca")
+        {
+            info_in->point_map[index].insert(index);
+        }
+        else if (opname == "bitcast" || opname == "getelementptr")
+        {
+            Instruction *instr_operand = (Instruction *)I->getOperand(0);
+            if (this->InstrToIndex.count(instr_operand) != 0)
+            {
+                unsigned operand_instr_index = this->InstrToIndex[instr_operand];
+                auto Rv_pointto_set = info_in->point_map[operand_instr_index];
+                if (!Rv_pointto_set.empty())
+                {
+                    info_in->point_map[index].insert(Rv_pointto_set.begin(), Rv_pointto_set.end());
+                }
+            }
+        }
+        // else if (opname == "getelementptr")
+        // {
+        //     // same as bitcast
+        //     Instruction *instr_operand = (Instruction *)I->getOperand(0);
+        //     if (this->InstrToIndex.count(instr_operand) != 0)
+        //     {
+        //         unsigned operand_instr_index = this->InstrToIndex[instr_operand];
+        //         auto Rv_pointto_set = info_in->point_map[operand_instr_index];
+        //         if (!Rv_pointto_set.empty())
+        //         {
+        //             info_in->point_map[index].insert(Rv_pointto_set.begin(), Rv_pointto_set.end());
+        //         }
+        //     }
+        // }
+        else if (opname == "load")
+        {
+            if (I->getType()->isPointerTy())
+            {
+                // Instruction *instr_operand = (Instruction *)I->getOperand(0);
+                Instruction *instr_operand = (Instruction*)(((LoadInst*)I)->getPointerOperand())
+                if (this->InstrToIndex.count(instr_operand) != 0)
+                {
+                    // Instruction *operand_operand_instr = (Instruction *)instr_operand->getOperand(0);
+                    unsigned operand_instr_index = this->InstrToIndex[instr_operand];
+                    for (auto X : info_in->point_map[operand_instr_index])
+                    {
+                        auto X_pointto_set = info_in->point_map[X];
+
+                        if (!X_pointto_set.empty())
+                        {
+                            info_in->point_map[index].insert(X_pointto_set.begin(), X_pointto_set.end());
+                        }
+                    }
+                }
+            }
+        }
+        else if (opname == "store")
+        {
+            Instruction *operand_V_instr = (Instruction *)I->getOperand(0);
+            Instruction *operand_P_instr = (Instruction *)I->getOperand(1);
+
+            if (this->InstrToIndex.count(operand_V_instr) != 0 && this->InstrToIndex.count(operand_P_instr) != 0)
+            {
+                unsigned operand_V_instr_index = this->InstrToIndex[operand_V_instr];
+                unsigned operand_P_instr_index = this->InstrToIndex[operand_P_instr];
+
+                auto V_pointto_set = info_in->point_map[operand_V_instr_index];
+
+                if (!V_pointto_set.empty())
+                {
+                    for (auto Y : info_in->point_map[operand_P_instr_index])
+                    {
+                        info_in->point_map[Y].insert(V_pointto_set.begin(), V_pointto_set.end());
+                    }
+                }
+            }
+        }
+        else if (opname == "select")
+        {
+            Instruction *operand_1_instr = (Instruction *)I->getOperand(1);
+            Instruction *operand_2_instr = (Instruction *)I->getOperand(2);
+
+            if (this->InstrToIndex.count(operand_1_instr) != 0)
+            {
+                unsigned operand_1_instr_index = this->InstrToIndex[operand_1_instr];
+                auto R1_pointto_set = info_in->point_map[operand_1_instr_index];
+                if (!R1_pointto_set.empty())
+                {
+                    info_in->point_map[index].insert(R1_pointto_set.begin(), R1_pointto_set.end());
+                }
+            }
+
+            if (this->InstrToIndex.count(operand_2_instr) != 0)
+            {
+                unsigned operand_2_instr_index = this->InstrToIndex[operand_2_instr];
+                auto R2_pointto_set = info_in->point_map[operand_2_instr_index];
+                if (!R2_pointto_set.empty())
+                {
+                    info_in->point_map[index].insert(R2_pointto_set.begin(), R2_pointto_set.end());
+                }
+            }
+        }
+        else if (opname == "phi")
+        {
+            Instruction *first_non_phi = I->getParent()->getFirstNonPHI();
+            unsigned index_first_non_phi = this->InstrToIndex[first_non_phi];
+            for (unsigned index_phi = index; index_phi < index_first_non_phi; index_phi++)
+            {
+                Instruction *instr_phi = this->IndexToInstr[index_phi];
+                unsigned num_operands = instr_phi->getNumOperands();
+                for (unsigned k = 0; k < num_operands; k++)
+                {
+                    // errs()<<"num phi operands: "<<k<<" in instr "<<index_phi<<"\n";
+                    // Instruction *operand_k_instr = (Instruction *)I->getOperand(k);
+                    Instruction *operand_k_instr = (Instruction *)instr_phi->getOperand(k);
+                    // errs()<<"phi operands in instr "<<this->InstrToIndex[operand_k_instr]<<"\n";
+                    if (this->InstrToIndex.count(operand_k_instr) != 0)
+                    {
+                        unsigned operand_k_instr_index = this->InstrToIndex[operand_k_instr];
+                        auto k_pointto_set = info_in->point_map[operand_k_instr_index];
+                        if (!k_pointto_set.empty())
+                        {
+                            info_in->point_map[index].insert(k_pointto_set.begin(), k_pointto_set.end());
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+        }
+
+        for (unsigned i = 0; i < Infos.size(); i++)
+        {
+            Infos[i]->point_map = info_in->point_map;
+        }
+
+        // assert(category!=10 && "No category!. ");
+
+        delete info_in;
+    }
+};
+
+struct MayPointToAnalysisPass : public FunctionPass
+{
+    static char ID;
+
+    MayPointToAnalysisPass() : FunctionPass(ID) {}
+
+    bool runOnFunction(Function &F) override
+    {
+
+        MayPointToInfo bot;
+        MayPointToAnalysis<MayPointToInfo, true> mpta(bot, bot);
+        // errs()<<"aa\n";
+        mpta.runWorklistAlgorithm(&F);
+        // errs()<<"bb\n";
+        mpta.print();
+        return false;
+    }
+};
+}
 
 char MayPointToAnalysisPass::ID = 0;
-static RegisterPass<MayPointToAnalysisPass> X("cse231-maypointto", "Do maypointto analysis on DFA CFG",
-                             false /* Only looks at CFG */,
-                             false /* Analysis Pass */);
+static RegisterPass<MayPointToAnalysisPass> X("cse231-maypointto", "Developed for part 3", false, false);
