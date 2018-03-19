@@ -102,18 +102,18 @@ class LivenessInfo : public Info
     // }
 };
 
-// template <class Info, bool Direction>
-class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
+template <class Info, bool Direction>
+class LivenessAnalysis : public DataFlowAnalysis<Info, Direction>
 {
   public:
-    LivenessAnalysis(LivenessInfo &bottom, LivenessInfo &initialState) : DataFlowAnalysis<LivenessInfo, false>::DataFlowAnalysis(bottom, initialState) {}
+    LivenessAnalysis(Info &bottom, Info &initialState) : DataFlowAnalysis<Info, Direction>::DataFlowAnalysis(bottom, initialState) {}
 
     ~LivenessAnalysis() {}
 
     void flowfunction(Instruction *I,
                       std::vector<unsigned> &IncomingEdges,
                       std::vector<unsigned> &OutgoingEdges,
-                      std::vector<LivenessInfo *> &Infos)
+                      std::vector<Info *> &Infos)
     {
         // errs()<<"in flowfunc\n";
         unsigned index = this->InstrToIndex[I];
@@ -124,7 +124,7 @@ class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
         string opname(I->getOpcodeName());
 
         // get instr for new live vars from operands
-        LivenessInfo *operandInfo = new LivenessInfo();
+        Info *operandInfo = new Info();
         for (unsigned i = 0; i < I->getNumOperands(); ++i)
         {
             Instruction *instr = (Instruction *)I->getOperand(i);
@@ -136,12 +136,12 @@ class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
 
         // errs()<<"opname "<<opname<<"\n";
 
-        LivenessInfo *info_in = new LivenessInfo();
+        Info *info_in = new Info();
         unsigned end = index;
         for (auto start : IncomingEdges)
         {
             auto edge = make_pair(start, end);
-            LivenessInfo::join(info_in, this->EdgeToInfo[edge], info_in);
+            Info::join(info_in, this->EdgeToInfo[edge], info_in);
         }
         // errs()<<"before category\n";
         // unsigned category = 10;
@@ -184,7 +184,7 @@ class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
             // errs()<<"Enter Phi\n";
             // each output
             for (unsigned k = 0; k < OutgoingEdges.size(); ++k) {
-                LivenessInfo * operandInfoPhi = new LivenessInfo();
+                Info * operandInfoPhi = new Info();
                 // LivenessInfo *out_k = new LivenessInfo();
 
                 // block label k
@@ -242,7 +242,7 @@ struct LivenessAnalysisPass : public FunctionPass
     {
 
         LivenessInfo bot;
-        LivenessAnalysis la(bot, bot);
+        LivenessAnalysis<LivenessInfo, false> la(bot, bot);
         // errs()<<"aa\n";
         la.runWorklistAlgorithm(&F);
         // errs()<<"bb\n";

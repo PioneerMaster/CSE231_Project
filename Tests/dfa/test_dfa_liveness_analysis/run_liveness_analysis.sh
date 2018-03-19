@@ -19,7 +19,7 @@ OUTPUTSOL_DIR=${OUTPUT_DIR}/sol
 mkdir -p /tmp/sol
 mkdir -p ${OUTPUT_DIR}/sol
 
-NAME=lib231
+NAME=phi1_liuche
 
 LL_NAME=${NAME}.ll
 

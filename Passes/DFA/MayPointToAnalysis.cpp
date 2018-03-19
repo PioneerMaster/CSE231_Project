@@ -25,31 +25,9 @@ using namespace std;
 
 const int M_bit = 15;
 
-unsigned toR(unsigned n)
-{
-    return n;
-}
 
-unsigned toM(unsigned n)
-{
-    return n | (1 << M_bit);
-}
 
-unsigned isR(unsigned n)
-{
-    return (n & (1 << M_bit)) == 0;
-}
 
-unsigned backtoRM(unsigned n)
-{
-    return (n & (~(1 << M_bit)));
-}
-
-string backtoRMstr(unsigned n)
-{
-    string a = to_string(backtoRM(n));
-    return isR(n) ? ("R" + a) : ("M" + a);
-}
 
 namespace
 {
@@ -75,6 +53,32 @@ class MayPointToInfo : public Info
         * Direction:
         *   In your subclass you should implement this function according to the project specifications.
         */
+
+    static unsigned toR(unsigned n)
+    {
+        return n;
+    }
+
+    static unsigned toM(unsigned n)
+    {
+        return n | (1 << M_bit);
+    }
+
+    static unsigned isR(unsigned n)
+    {
+        return (n & (1 << M_bit)) == 0;
+    }
+
+    static unsigned backtoRM(unsigned n)
+    {
+        return (n & (~(1 << M_bit)));
+    }
+
+    static string backtoRMstr(unsigned n)
+    {
+        string a = to_string(backtoRM(n));
+        return isR(n) ? ("R" + a) : ("M" + a);
+    }
 
     string map2Str()
     {
@@ -124,7 +128,7 @@ class MayPointToInfo : public Info
         * Direction:
         *   In your subclass you need to implement this function.
         */
-    static Info *join(MayPointToInfo *info1, MayPointToInfo *info2, MayPointToInfo *result)
+    static void *join(MayPointToInfo *info1, MayPointToInfo *info2, MayPointToInfo *result)
     {
         //make sure that info1 != result and info2 != result
 
@@ -168,18 +172,18 @@ class MayPointToInfo : public Info
     }
 };
 
-template <class Info, bool Direction>
-class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
+// template <class Info, bool Direction>
+class MayPointToAnalysis : public DataFlowAnalysis<MayPointToInfo, true>
 {
   public:
-    MayPointToAnalysis(Info &bottom, Info &initialState) : DataFlowAnalysis<Info, Direction>::DataFlowAnalysis(bottom, initialState) {}
+    MayPointToAnalysis(MayPointToInfo &bottom, MayPointToInfo &initialState) : DataFlowAnalysis<MayPointToInfo, true>::DataFlowAnalysis(bottom, initialState) {}
 
     ~MayPointToAnalysis() {}
 
     void flowfunction(Instruction *I,
                       std::vector<unsigned> &IncomingEdges,
                       std::vector<unsigned> &OutgoingEdges,
-                      std::vector<Info *> &Infos)
+                      std::vector<MayPointToInfo *> &Infos)
     {
         // errs()<<"in flowfunc\n";
         unsigned index = this->InstrToIndex[I];
@@ -191,12 +195,12 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
 
         // errs()<<"opname "<<opname<<"\n";
 
-        Info *info_in = new Info();
+        auto *info_in = new MayPointToInfo();
         unsigned end = index;
         for (auto start : IncomingEdges)
         {
             auto edge = make_pair(start, end);
-            Info::join(info_in, this->EdgeToInfo[edge], info_in);
+            MayPointToInfo::join(info_in, this->EdgeToInfo[edge], info_in);
         }
         // errs()<<"before category\n";
         // unsigned category = 10;
@@ -204,7 +208,7 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
         //isa<AllocaInst>(I)
         if (opname == "alloca")
         {
-            info_in->point_map[index].insert(toM(index));
+            info_in->point_map[index].insert(MayPointToInfo::toM(index));
         }
         // in U {R_i -> X | R_y -> X -- in }   X can be R_a M_a
         else if (opname == "bitcast" || opname == "getelementptr")
@@ -356,7 +360,7 @@ struct MayPointToAnalysisPass : public FunctionPass
     {
 
         MayPointToInfo bot;
-        MayPointToAnalysis<MayPointToInfo, true> mpta(bot, bot);
+        MayPointToAnalysis mpta(bot, bot);
         // errs()<<"aa\n";
         mpta.runWorklistAlgorithm(&F);
         // errs()<<"bb\n";
