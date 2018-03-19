@@ -1,1 +1,1 @@
-add_subdirectory(DFA)
+add_subdirectory(DFA_kophy)

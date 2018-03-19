@@ -160,27 +160,15 @@ class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
                 Infos[i]->info = info_in->info;
             }
         }
-        else if (cat2.find(opname) != cat2.end())
-        {
-            // no result, do not erase
-            // info_in->info.erase(index);
-            LivenessInfo::join(info_in, operandInfo, info_in);
-            for (unsigned i = 0; i < Infos.size(); i++)
-            {
-                Infos[i]->info = info_in->info;
-            }
-        }
         else if (cat3.find(opname) != cat3.end())
         {
-            unsigned i_phi = index;
+            // unsigned i_phi = index;
             Instruction *firstNonPhi = I->getParent()->getFirstNonPHI();
             unsigned indexFirstNonPhi = this->InstrToIndex[firstNonPhi];
-
-            for (i_phi = index; i_phi < indexFirstNonPhi; i_phi++)
+            for (auto i_phi = index; i_phi < indexFirstNonPhi; i_phi++)
             {
                 info_in->info.erase(i_phi);
             }
-
             // errs()<<"Enter Phi\n";
             // each output
             for (unsigned k = 0; k < OutgoingEdges.size(); ++k) {
@@ -191,19 +179,20 @@ class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
                 // errs()<<"Enter out["<<k<<"]\n";
                 BasicBlock * block_k = this->IndexToInstr[ OutgoingEdges[k] ]->getParent();
 
-
-                for (unsigned i_phi=index; i_phi<indexFirstNonPhi; ++i_phi){
+                // each instr
+                for (auto i_phi=index; i_phi<indexFirstNonPhi; ++i_phi){
                     // errs()<<"Enter ["<<i_phi<<"] phi instr\n";
                     Instruction *instr_phi = this->IndexToInstr[i_phi];
 
-                    for (unsigned j_operand = 0;j_operand < instr_phi->getNumOperands();++j_operand){
+                    // each operand for phi node
+                    for (unsigned j_operand = 0;j_operand < instr_phi->getNumOperands();++j_operand) {
                         //def instr of var -- ith phi instr, jth operand
                         // errs()<<"Enter ["<<j_operand<<"] operand"<<"\t\n";
                         // Instruction *instr_ij = this->IndexToInstr[j_operand];
                         Instruction *instr_ij = (Instruction *)instr_phi->getOperand(j_operand);
-                        BasicBlock * block_ij = instr_ij->getParent();
                         if (this->InstrToIndex.count(instr_ij) == 0)
                             continue;
+                        BasicBlock * block_ij = instr_ij->getParent();
                         
                         if(block_ij == block_k){
                             operandInfoPhi->info.insert(this->InstrToIndex[instr_ij]);
@@ -217,15 +206,26 @@ class LivenessAnalysis : public DataFlowAnalysis<LivenessInfo, false>
             }
 
         }
+        // else if (cat2.find(opname) != cat2.end())
         else
         {
             // no result, do not erase
+            // info_in->info.erase(index);
             LivenessInfo::join(info_in, operandInfo, info_in);
             for (unsigned i = 0; i < Infos.size(); i++)
             {
                 Infos[i]->info = info_in->info;
             }
         }
+        // else
+        // {
+        //     // no result, do not erase
+        //     LivenessInfo::join(info_in, operandInfo, info_in);
+        //     for (unsigned i = 0; i < Infos.size(); i++)
+        //     {
+        //         Infos[i]->info = info_in->info;
+        //     }
+        // }
 
         delete operandInfo;
         delete info_in;
