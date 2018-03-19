@@ -40,13 +40,15 @@ unsigned isR(unsigned n)
     return (n & (1 << M_bit)) == 0;
 }
 
-unsigned backtoRM(unsigned n){
+unsigned backtoRM(unsigned n)
+{
     return (n & (~(1 << M_bit)));
 }
 
 string backtoRMstr(unsigned n)
 {
-    return to_string(backtoRM(n));
+    string a = to_string(backtoRM(n));
+    return isR(n) ? ("R" + a) : ("M" + a);
 }
 
 namespace
@@ -79,24 +81,18 @@ class MayPointToInfo : public Info
         string res = "";
         for (auto entry : point_map)
         {
-            // string Rx = toR(entry.first);
-            string Rx = "R" + backtoRMstr(entry.first);
-            string Ms = "->(";
+            string P = backtoRMstr(entry.first);
+            string Os = "->(";
             // prevent print empty set
             if (entry.second.empty())
                 continue;
             for (auto M_unsigned : entry.second)
             {
-                // string Mx = toM(M_unsigned);
-                if(isR(M_unsigned)) {
-                    continue;
-                }
-                string Mx = "M" + backtoRMstr(M_unsigned);
-                Ms.append(Mx + "/");
-                // res.append(Rx+"->"+Mx+"|");
+                string Mx = backtoRMstr(M_unsigned);
+                Os.append(Mx + "/");
             }
-            Ms.append(")|");
-            res.append(Rx + Ms);
+            Os.append(")|");
+            res.append(P + Os);
         }
         return res;
     }
@@ -239,7 +235,6 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
         //     }
         // }
 
-
         // in U {R_i -> Y | R_p -> X -- in  &  X -> Y -- in}   X is R_a not M_a
         else if (opname == "load")
         {
@@ -253,11 +248,7 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
                     unsigned operand_instr_index = this->InstrToIndex[instr_operand];
                     for (auto X : info_in->point_map[operand_instr_index])
                     {
-                        if (!isR(X)) {
-                            continue;
-                        }
                         auto X_pointto_set = info_in->point_map[X];
-
                         if (!X_pointto_set.empty())
                         {
                             info_in->point_map[index].insert(X_pointto_set.begin(), X_pointto_set.end());
@@ -284,9 +275,6 @@ class MayPointToAnalysis : public DataFlowAnalysis<Info, Direction>
                 {
                     for (auto Y : info_in->point_map[operand_P_instr_index])
                     {
-                        if (!isR(Y)){
-                            continue;
-                        }
                         info_in->point_map[Y].insert(V_pointto_set.begin(), V_pointto_set.end());
                     }
                 }
