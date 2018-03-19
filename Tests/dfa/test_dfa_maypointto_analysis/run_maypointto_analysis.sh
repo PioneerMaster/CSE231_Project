@@ -20,7 +20,7 @@ mkdir -p /tmp/sol
 mkdir -p ${OUTPUT_DIR}/sol
 
 # NAME=load-store-to-memcpy
-NAME=lib231_pwwp
+NAME=phi1_liuche
 
 LL_NAME=${NAME}.ll
 
