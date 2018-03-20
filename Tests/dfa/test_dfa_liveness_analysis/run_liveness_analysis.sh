@@ -19,7 +19,12 @@ OUTPUTSOL_DIR=${OUTPUT_DIR}/sol
 mkdir -p /tmp/sol
 mkdir -p ${OUTPUT_DIR}/sol
 
-NAME=phi1_liuche
+# NAME=phi1_liuche
+# NAME=lib231_pwwp
+# NAME=pointer
+# NAME=test_zwb
+# NAME=fib_ret2
+NAME=ADCE/2002-05-22-PHITest
 
 LL_NAME=${NAME}.ll
 
